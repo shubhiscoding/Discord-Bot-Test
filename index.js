@@ -51,7 +51,7 @@ async function checkTokenHolding(walletAddress, minBalance) {
     for (const tokenAccount of tokenAccounts.value) {
       const tokenInfo = tokenAccount.account.data.parsed.info;
       console.log(`Checking token: ${tokenInfo.mint}`);
-      if (tokenInfo.mint === 'F7Hwf8ib5DVCoiuyGr618Y3gon429Rnd1r5F9R5upump') { // Replace with actual $WORK token mint address
+      if (tokenInfo.mint === 'F7Hwf8ib5DVCoiuyGr618Y3gon429Rnd1r5F9R5upump') {
         const balance = tokenInfo.tokenAmount.uiAmount;
         console.log(`$WORK token balance: ${balance}`);
         if (balance >= minBalance) {
