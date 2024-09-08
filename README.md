@@ -1,68 +1,87 @@
-# Discord $WORK Token Role Bot
+# Discord Wallet Verification Bot
 
-This bot automatically assigns a role to users in your Discord server based on their $WORK token holdings from the Solana blockchain.
+This Discord bot verifies users' wallet holdings and manages roles based on their token balance. It connects with the Solana blockchain to check token balances and uses a PostgreSQL database to track user verification status.
+
+## Features
+
+- Discord bot with `/verify` command
+- Sends a unique verification link to users
+- Periodic check to update user roles based on token holdings
+- Integrates with Solana blockchain to verify token balances
 
 ## Prerequisites
 
-Before running the bot, ensure you have the following:
-1. **Node.js**: [Download and install Node.js](https://nodejs.org/) (version 16.x or later recommended).
-2. **Solana Wallet and Token Info**: Ensure you have the Solana $WORK token mint address and the token program ID.
-3. **Discord Bot**: Create a bot in the [Discord Developer Portal](https://discord.com/developers/applications) and get the Bot Token.
-4. **Discord Server**: The bot must be added to your Discord server with the necessary permissions.
+- Node.js (v18 or higher)
+- PostgreSQL
+- Solana CLI (optional for debugging)
+- A Discord bot token
+- An environment to host the bot (e.g., local machine, VPS)
 
-## Setup
+## Installation
 
-### 1. Clone the Repository
+1. **Clone the repository:**
 
-```bash
-git clone https://github.com/yourusername/discord-work-token-bot.git
-cd discord-work-token-bot
-```
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Configure Environment Variables
-
-Create a `.env` file in the root directory of the project and add your Discord Bot Token:
-
-```plaintext
-DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
-```
-
-Replace `YOUR_DISCORD_BOT_TOKEN` with the token from the Discord Developer Portal.
-
-### 4. Update Bot Code
-
-Open `index.js` and ensure the following:
-- Replace `YOUR_GUILD_ID` with your Discord server's Guild ID.
-- Verify the Solana Token Program ID is correct (typically `Token Program ID`).
-
-### 5. Run the Bot
-
-Start the bot using Node.js:
-
-```bash
-node bot.js
-```
-
-You should see `Bot is online!` in the terminal if everything is set up correctly.
-
-## Usage
-
-1. **Verify Token Holdings**: In your Discord server, use the slash command `/verify` followed by your Solana wallet address. For example:
-
-   ```
-   /verify wallet 3sPF...YourSolanaAddress
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
    ```
 
-2. **Check Role Assignment**: If the wallet address holds the required amount of $WORK tokens, the bot will assign the "Token Holder" role to the user.
+2. **Install dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables:**
+
+   Create a `.env` file in the root of the project with the following content:
+
+   ```env
+   DISCORD_BOT_TOKEN=your-discord-bot-token
+   DATABASE_URL=your-database-url
+   VERIFICATION_APP_URL=your-verification-app-url
+   ```
+
+   Replace `your-discord-bot-token`, `your-database-url`, and `your-verification-app-url` with your actual values.
+
+4. **Set up the PostgreSQL database:**
+
+   Ensure your PostgreSQL database is running and create a table for verification:
+
+   ```sql
+   CREATE TABLE verifications (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(255) NOT NULL,
+      discord_username VARCHAR(255),
+      public_key VARCHAR(255),
+      token VARCHAR(255) UNIQUE NOT NULL,
+      verified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      verified_at TIMESTAMP WITH TIME ZONE
+   );
+
+   ```
+
+## Running the Bot
+
+Start the bot with:
+
+```bash
+node index.js
+```
+
+The bot will start and listen for interactions on your Discord server.
+
+## Commands
+
+- `/verify` - Starts the wallet connection and verification process. A unique verification link will be sent to the user.
+
+## Cron Job
+
+The bot includes a cron job that runs daily at midnight to check token holdings and update user roles accordingly.
 
 ## Troubleshooting
 
-- **Bot Permissions**: Ensure the bot has `Manage Roles` permission and the role is set above the bot's role in the server hierarchy.
-- **Errors**: Check the terminal for any errors logged during the bot's operation and ensure all configuration details are correct.
-- **Token Info**: Double-check the $WORK token mint address and Solana Token Program ID.
+- **Bot not responding:** Check if the bot is online and properly connected to Discord. Ensure the bot token is correct and not expired.
+- **Database errors:** Verify the database connection and schema. Ensure PostgreSQL is running and accessible.
+- **Token balance issues:** Ensure the Solana connection is correct and the token mint address is accurate.
