@@ -4,6 +4,10 @@ const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle,
 const crypto = require('crypto');
 const { Pool } = require('pg');
 require('dotenv').config();
+const cron = require('node-cron');
+const { Connection, PublicKey } = require('@solana/web3.js');
+
+const solanaConnection = new Connection("https://api.mainnet-beta.solana.com");
 
 const app = express();
 app.use(bodyParser.json());
@@ -35,6 +39,10 @@ client.once('ready', async () => {
   } catch (error) {
     console.error('Error registering slash command:', error);
   }
+  cron.schedule('0 0 * * *', () => {
+    console.log('Running periodic role check');
+    checkAllHolders(guild);
+  });
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -68,6 +76,65 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 });
+
+
+async function checkAllHolders(guild) {
+  try {
+    const holderRole = guild.roles.cache.find(role => role.name === 'HOLDERS');
+    if (!holderRole) {
+      console.error('HOLDERS role not found');
+      return;
+    }
+
+    const holders = await pool.query('SELECT user_id, public_key FROM verifications WHERE verified = true');
+
+    for (const holder of holders.rows) {
+      const stillHolds = await checkTokenHolding(holder.public_key);
+      const member = await guild.members.fetch(holder.user_id);
+
+      if (!stillHolds && member.roles.cache.has(holderRole.id)) {
+        await member.roles.remove(holderRole);
+        const user = await client.users.fetch(holder.user_id);
+        const dmChannel = await user.createDM();
+        await dmChannel.send('Your HOLDERS role has been removed as you no longer meet the token holding requirement.');
+      } else if (stillHolds && !member.roles.cache.has(holderRole.id)) {
+        await member.roles.add(holderRole);
+        const user = await client.users.fetch(holder.user_id);
+        const dmChannel = await user.createDM();
+        await dmChannel.send('Your HOLDERS role has been reinstated as you now meet the token holding requirement.');
+      }
+
+      await pool.query('UPDATE verifications SET verified = $1 WHERE user_id = $2', [stillHolds, holder.user_id]);
+    }
+
+    console.log('Periodic role check completed');
+  } catch (error) {
+    console.error('Error during periodic role check:', error);
+  }
+}
+
+async function checkTokenHolding(walletAddress) {
+  const publicKey = new PublicKey(walletAddress);
+  const tokenMint = new PublicKey('F7Hwf8ib5DVCoiuyGr618Y3gon429Rnd1r5F9R5upump');
+
+  try {
+    const tokenAccounts = await solanaConnection.getParsedTokenAccountsByOwner(publicKey, { programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') });
+
+    for (const tokenAccount of tokenAccounts.value) {
+      const tokenInfo = tokenAccount.account.data.parsed.info;
+      if (tokenInfo.mint === tokenMint.toBase58()) {
+        const balance = tokenInfo.tokenAmount.uiAmount;
+        if (balance >= 1) {
+          return true;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking token holdings:', error);
+    return false;
+  }
+  return false;
+}
 
 app.post('/verify-status', async (req, res) => {
   const { token, userId, verified } = req.body;
